@@ -1,0 +1,7 @@
+names:
+  0: cow
+  1: deer
+  2: horse
+test: /Users/matias/Downloads/PROYECTO_FINAL_VA/compare_model_metrics/yolov11_RGB/test/images
+train: /Users/matias/Downloads/PROYECTO_FINAL_VA/compare_model_metrics/yolov11_RGB/train/images
+val: /Users/matias/Downloads/PROYECTO_FINAL_VA/compare_model_metrics/yolov11_RGB/valid/images

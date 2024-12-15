@@ -1,0 +1,8 @@
+names:
+  0: cow
+  1: deer
+  2: horse
+path: /Users/matias/Downloads/PROYECTO_FINAL_VA/dataset_div
+test: /Users/matias/Downloads/PROYECTO_FINAL_VA/dataset_div/test
+train: /Users/matias/Downloads/PROYECTO_FINAL_VA/dataset_div/train
+val: /Users/matias/Downloads/PROYECTO_FINAL_VA/dataset_div/valid

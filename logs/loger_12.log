@@ -1,0 +1,4 @@
+2024-12-14 18:29:54,773 - root - INFO - Se eliminaron los .yaml
+2024-12-14 18:30:13,806 - root - INFO - Se dividió correctamente los datasets
+2024-12-14 18:30:13,807 - root - INFO - Se salteo la creación de nuevos sets
+2024-12-14 18:30:13,807 - root - INFO - Comienza el entrenamiento

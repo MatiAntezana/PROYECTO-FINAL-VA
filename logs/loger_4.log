@@ -1,0 +1,6 @@
+2024-12-07 22:14:47,772 - root - INFO - Se salteo la creación de nuevos sets
+2024-12-07 22:14:47,772 - root - INFO - Comienza el entrenamiento
+2024-12-07 22:15:39,498 - root - INFO - Se eliminaron los .yaml
+2024-12-07 22:16:00,557 - root - INFO - Se dividio correctamente los sets y aplicó a todos la función de trasformación de datos
+2024-12-07 22:16:00,833 - root - INFO - Se salteo la creación de nuevos sets
+2024-12-07 22:16:00,834 - root - INFO - Comienza el entrenamiento
