@@ -28,7 +28,7 @@ def extract_txt_files_from_folder(folder_path):
     for filename in os.listdir(folder_path):
         # Verifica si el archivo tiene la extensión .txt
         if filename.endswith('.txt'):
-            txt_files.append(os.path.join(folder_path, filename))  # Añade la ruta completa al archivo
+            txt_files.append(os.path.join(folder_path, filename))
     
     # Ordena los archivos por el número después de 'test_'
     txt_files_sorted = sorted(
@@ -46,7 +46,7 @@ def extract_first_column(file_path):
             # Divide cada línea en columnas
             columns = line.split()
             # Agrega el primer valor (de la primera columna) a la lista
-            first_column.append(int(columns[0]))  # Convertir a float si es necesario
+            first_column.append(int(columns[0]))
     
     return first_column
 
@@ -111,7 +111,7 @@ def get_jpg_files_from_folder(folder_path):
     def extract_number(file_path):
     # Suponiendo que el formato del archivo es test_x.jpg, donde x es un número
         file_name = file_path.stem  # Obtener el nombre del archivo sin la extensión
-        number = int(file_name.split('_')[1])  # Extraer el número después de "test_"
+        number = int(file_name.split('_')[1])
         return number
 
     # Ordenar los archivos por el número extraído

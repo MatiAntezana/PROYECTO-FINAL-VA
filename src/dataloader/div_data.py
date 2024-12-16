@@ -16,9 +16,9 @@ def delete_file_folder(ruta_carpeta):
         ruta_archivo = os.path.join(ruta_carpeta, archivo)
 
         if os.path.isfile(ruta_archivo) or os.path.islink(ruta_archivo):
-            os.unlink(ruta_archivo)  # Elimina archivos o enlaces simbólicos
+            os.unlink(ruta_archivo)
         elif os.path.isdir(ruta_archivo):
-            shutil.rmtree(ruta_archivo)  # Elimina carpetas y su contenido
+            shutil.rmtree(ruta_archivo) 
 
     print(f"Todo el contenido de la carpeta '{ruta_carpeta}' ha sido eliminado.")
 
