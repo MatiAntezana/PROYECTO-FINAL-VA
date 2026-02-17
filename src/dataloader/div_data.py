@@ -1,246 +1,297 @@
+import io
 import logging
 import os
 import random
 import shutil
-import yaml
-from PIL import Image
-import io
 from shutil import copy2
 
-def delete_file_folder(ruta_carpeta):
-    if not os.path.exists(ruta_carpeta):
-        print(f"La carpeta '{ruta_carpeta}' no existe.")
+import yaml
+from PIL import Image
+
+
+def delete_file_folder(folder_path):
+    """Delete all files and subfolders inside a folder."""
+    if not os.path.exists(folder_path):
+        print(f"Folder '{folder_path}' does not exist.")
         return
 
-    for archivo in os.listdir(ruta_carpeta):
-        ruta_archivo = os.path.join(ruta_carpeta, archivo)
+    for file_name in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, file_name)
+        if os.path.isfile(file_path) or os.path.islink(file_path):
+            os.unlink(file_path)
+        elif os.path.isdir(file_path):
+            shutil.rmtree(file_path)
 
-        if os.path.isfile(ruta_archivo) or os.path.islink(ruta_archivo):
-            os.unlink(ruta_archivo)
-        elif os.path.isdir(ruta_archivo):
-            shutil.rmtree(ruta_archivo) 
+    print(f"All content in '{folder_path}' was removed.")
 
-    print(f"Todo el contenido de la carpeta '{ruta_carpeta}' ha sido eliminado.")
 
-def rename_img_txt(carpeta_origen, nombre_base):
-    archivos = os.listdir(carpeta_origen)
-    imagenes_renombradas = []
-    rename_txt = []
+def rename_img_txt(source_folder, base_name):
+    """Load paired RGB/thermal images and return normalized label references."""
+    file_names = os.listdir(source_folder)
+    renamed_images = []
+    renamed_txt_files = []
     index = 1
 
-    # Filtrar imágenes normales y térmicas
-    imgs_normal = [f for f in archivos if f.lower().endswith('.jpg') and '_R' not in f]
-    imgs_termal = [f for f in archivos if f.lower().endswith('.jpg') and '_R' in f]
+    rgb_images = [name for name in file_names if name.lower().endswith(".jpg") and "_R" not in name]
+    thermal_images = [name for name in file_names if name.lower().endswith(".jpg") and "_R" in name]
 
-    for imagen_normal in sorted(imgs_normal):  # Ordenar para consistencia
+    for rgb_image_name in sorted(rgb_images):
         try:
-            # Leer imagen normal
-            ruta_normal = os.path.join(carpeta_origen, imagen_normal)
-            with open(ruta_normal, "rb") as img_file:
-                imagen_normal_data = Image.open(io.BytesIO(img_file.read()))
+            rgb_image_path = os.path.join(source_folder, rgb_image_name)
+            with open(rgb_image_path, "rb") as image_file:
+                rgb_image_data = Image.open(io.BytesIO(image_file.read())).copy()
 
-            # Nuevo nombre para la imagen normal
-            nuevo_nombre_normal = f"{nombre_base}_{str(index).zfill(4)}.jpg"
+            rgb_txt_path = os.path.splitext(rgb_image_path)[0] + ".txt"
+            rgb_txt_file = rgb_txt_path if os.path.exists(rgb_txt_path) else None
+            new_rgb_txt_name = f"{base_name}_{str(index).zfill(4)}.txt"
 
-            # Buscar archivo TXT correspondiente
-            ruta_txt_normal = os.path.splitext(ruta_normal)[0] + ".txt"
-            archivo_txt_normal = ruta_txt_normal if os.path.exists(ruta_txt_normal) else None
-            nuevo_txt_normal = f"{nombre_base}_{str(index).zfill(4)}.txt"
+            image_number = os.path.splitext(rgb_image_name)[0].split("_")[-1]
+            thermal_number = str(int(image_number) - 1).zfill(4)
+            thermal_image_name = next((name for name in thermal_images if thermal_number in name), None)
 
-            # Buscar imagen térmica correspondiente
-            numero_imagen = os.path.splitext(imagen_normal)[0].split('_')[-1]
-            numero_termica = str(int(numero_imagen) - 1).zfill(4)
-            imagen_termica = next(
-                (f for f in imgs_termal if numero_termica in f), None
+            thermal_image_data = None
+            thermal_txt_file = None
+            new_thermal_txt_name = None
+
+            if thermal_image_name:
+                thermal_image_path = os.path.join(source_folder, thermal_image_name)
+                with open(thermal_image_path, "rb") as image_file:
+                    thermal_image_data = Image.open(io.BytesIO(image_file.read())).copy()
+
+                thermal_txt_path = os.path.splitext(thermal_image_path)[0] + ".txt"
+                thermal_txt_file = thermal_txt_path if os.path.exists(thermal_txt_path) else None
+                new_thermal_txt_name = f"{base_name}_{str(index).zfill(4)}_T.txt"
+
+            renamed_images.append((rgb_image_data, thermal_image_data))
+            renamed_txt_files.append(
+                ((new_rgb_txt_name, rgb_txt_file), (new_thermal_txt_name, thermal_txt_file))
             )
-
-            imagen_termica_data = None
-            archivo_txt_termica = None
-            nuevo_txt_termica = None
-
-            if imagen_termica:
-                ruta_termica = os.path.join(carpeta_origen, imagen_termica)
-                with open(ruta_termica, "rb") as img_file:
-                    imagen_termica_data = Image.open(io.BytesIO(img_file.read()))
-
-                # Nuevo nombre para la imagen térmica
-                nuevo_nombre_termica = f"{nombre_base}_{str(index).zfill(4)}_T.jpg"
-
-                # Buscar archivo TXT correspondiente
-                ruta_txt_termica = os.path.splitext(ruta_termica)[0] + ".txt"
-                archivo_txt_termica = ruta_txt_termica if os.path.exists(ruta_txt_termica) else None
-                nuevo_txt_termica = f"{nombre_base}_{str(index).zfill(4)}_T.txt"
-
-            # Agregar datos a las listas
-            imagenes_renombradas.append((imagen_normal_data, imagen_termica_data))
-            rename_txt.append(
-                ((nuevo_txt_normal, archivo_txt_normal), (nuevo_txt_termica, archivo_txt_termica))
-            )
-
             index += 1
+        except Exception as error:
+            print(f"Error processing {rgb_image_name}: {error}")
 
-        except Exception as e:
-            print(f"Error procesando {imagen_normal}: {e}")
+    return renamed_images, renamed_txt_files
 
-    return imagenes_renombradas, rename_txt
 
-def construct_file_yaml(output_path, train_path, valid_path, test_path, classes, BASE_DIR, name_yaml):
+def construct_file_yaml(output_path, train_path, valid_path, test_path, classes, base_dir, yaml_name):
+    """Create a YOLO data YAML file under the src directory."""
     data = {
-    'path': BASE_DIR+f"/{output_path}",
-    'train': BASE_DIR+f"/{output_path}"+train_path,
-    'val': BASE_DIR+f"/{output_path}"+valid_path,
-    'test': BASE_DIR+f"/{output_path}"+test_path,
-    "names": classes
+        "path": f"{base_dir}/{output_path}",
+        "train": f"{base_dir}/{output_path}{train_path}",
+        "val": f"{base_dir}/{output_path}{valid_path}",
+        "test": f"{base_dir}/{output_path}{test_path}",
+        "names": classes,
     }
-    ruta_archivo = "src/"+name_yaml
-
-    with open(ruta_archivo, 'w') as archivo:
-        yaml.dump(data, archivo, default_flow_style=False, allow_unicode=True)
+    file_path = f"src/{yaml_name}"
+    with open(file_path, "w") as yaml_file:
+        yaml.dump(data, yaml_file, default_flow_style=False, allow_unicode=True)
 
 
 def split_dataset_images(images, txt_files, output_path, seed=341, train_ratio=0.7, valid_ratio=0.2):
-    # Crear carpetas de salida
-    for split in ["train", "valid", "test"]:
-        for img_type in ["img_normal", "termales"]:
-            os.makedirs(os.path.join(output_path, split, img_type, "images"), exist_ok=True)
-            os.makedirs(os.path.join(output_path, split, img_type, "labels"), exist_ok=True)
+    """Split paired RGB/thermal samples into train, valid, and test subsets."""
+    for split_name in ["train", "valid", "test"]:
+        for image_type in ["img_normal", "thermal"]:
+            os.makedirs(os.path.join(output_path, split_name, image_type, "images"), exist_ok=True)
+            os.makedirs(os.path.join(output_path, split_name, image_type, "labels"), exist_ok=True)
 
-    # Mezclar datos
     random.seed(seed)
-    data = list(zip(images, txt_files))
-    random.shuffle(data)
+    dataset_items = list(zip(images, txt_files))
+    random.shuffle(dataset_items)
 
-    total = len(data)
-    train_end = int(total * train_ratio)
-    valid_end = train_end + int(total * valid_ratio)
+    total_items = len(dataset_items)
+    train_end = int(total_items * train_ratio)
+    valid_end = train_end + int(total_items * valid_ratio)
 
-    splits = {
-        "train": data[:train_end],
-        "valid": data[train_end:valid_end],
-        "test": data[valid_end:]
+    split_sets = {
+        "train": dataset_items[:train_end],
+        "valid": dataset_items[train_end:valid_end],
+        "test": dataset_items[valid_end:],
     }
 
-    # Guardar imágenes y archivos TXT en carpetas correspondientes
-    for split, split_data in splits.items():
-        for idx, ((img_normal, img_termal), (txt_normal, txt_termal)) in enumerate(split_data):
-            # Generar nombres únicos
-            base_name = f"{split}_{idx + 1}"
-            normal_img_name = f"{base_name}.jpg"
-            thermal_img_name = f"{base_name}_T.jpg"
-            normal_txt_name = f"{base_name}.txt"
+    for split_name, split_data in split_sets.items():
+        for index, ((rgb_image, thermal_image), (rgb_txt, thermal_txt)) in enumerate(split_data):
+            base_name = f"{split_name}_{index + 1}"
+            rgb_image_name = f"{base_name}.jpg"
+            thermal_image_name = f"{base_name}_T.jpg"
+            rgb_txt_name = f"{base_name}.txt"
             thermal_txt_name = f"{base_name}_T.txt"
 
-            # Rutas de salida
-            img_normal_output = os.path.join(output_path, split, "img_normal", "images", normal_img_name)
-            img_termal_output = os.path.join(output_path, split, "termales", "images", thermal_img_name)
-            txt_normal_output = os.path.join(output_path, split, "img_normal", "labels", normal_txt_name)
-            txt_termal_output = os.path.join(output_path, split, "termales", "labels", thermal_txt_name)
+            rgb_image_output = os.path.join(output_path, split_name, "img_normal", "images", rgb_image_name)
+            thermal_image_output = os.path.join(output_path, split_name, "thermal", "images", thermal_image_name)
+            rgb_txt_output = os.path.join(output_path, split_name, "img_normal", "labels", rgb_txt_name)
+            thermal_txt_output = os.path.join(output_path, split_name, "thermal", "labels", thermal_txt_name)
 
-            # Guardar imágenes en disco
-            img_normal.save(img_normal_output, format="JPEG")
-            img_termal.save(img_termal_output, format="JPEG")
+            rgb_image.save(rgb_image_output, format="JPEG")
+            thermal_image.save(thermal_image_output, format="JPEG")
+            copy2(rgb_txt[1], rgb_txt_output)
+            copy2(thermal_txt[1], thermal_txt_output)
 
-            # Copiar archivos TXT
-            copy2(txt_normal[1], txt_normal_output)
-            copy2(txt_termal[1], txt_termal_output)
+    print("Dataset split completed.")
 
-    print("División del dataset completada.")
 
-def split_dataset_one_images(images, txt_files, output_path, type_model, seed=341, train_ratio=0.7, valid_ratio=0.2):
-    # Crear carpetas de salida
-    for split in ["train", "valid", "test"]:
-        os.makedirs(os.path.join(output_path, split, "images"), exist_ok=True)
-        os.makedirs(os.path.join(output_path, split, "labels"), exist_ok=True)
+def split_dataset_one_images(images, txt_files, output_path, model_type, seed=341, train_ratio=0.7, valid_ratio=0.2):
+    """Split samples for single-stream models (RGB or thermal only)."""
+    for split_name in ["train", "valid", "test"]:
+        os.makedirs(os.path.join(output_path, split_name, "images"), exist_ok=True)
+        os.makedirs(os.path.join(output_path, split_name, "labels"), exist_ok=True)
 
-    # Mezclar datos
     random.seed(seed)
-    data = list(zip(images, txt_files))
-    random.shuffle(data)
+    dataset_items = list(zip(images, txt_files))
+    random.shuffle(dataset_items)
 
-    total = len(data)
-    train_end = int(total * train_ratio)
-    valid_end = train_end + int(total * valid_ratio)
+    total_items = len(dataset_items)
+    train_end = int(total_items * train_ratio)
+    valid_end = train_end + int(total_items * valid_ratio)
 
-    splits = {
-        "train": data[:train_end],
-        "valid": data[train_end:valid_end],
-        "test": data[valid_end:]
+    split_sets = {
+        "train": dataset_items[:train_end],
+        "valid": dataset_items[train_end:valid_end],
+        "test": dataset_items[valid_end:],
     }
 
-    # Guardar imágenes y archivos TXT en carpetas correspondientes
-    for split, split_data in splits.items():
-        for idx, ((img_normal, img_termal), (txt_normal, txt_termal)) in enumerate(split_data):
-            # Generar nombres únicos
-            base_name = f"{split}_{idx + 1}"
-            normal_img_name = f"{base_name}.jpg"
-            thermal_img_name = f"{base_name}_T.jpg"
-            normal_txt_name = f"{base_name}.txt"
+    for split_name, split_data in split_sets.items():
+        for index, ((rgb_image, thermal_image), (rgb_txt, thermal_txt)) in enumerate(split_data):
+            base_name = f"{split_name}_{index + 1}"
+            rgb_image_name = f"{base_name}.jpg"
+            thermal_image_name = f"{base_name}_T.jpg"
+            rgb_txt_name = f"{base_name}.txt"
             thermal_txt_name = f"{base_name}_T.txt"
 
-            # Rutas de salida para las imágenes
-            img_normal_output = os.path.join(output_path, split, "images", normal_img_name)
-            img_termal_output = os.path.join(output_path, split, "images", thermal_img_name)
+            rgb_image_output = os.path.join(output_path, split_name, "images", rgb_image_name)
+            thermal_image_output = os.path.join(output_path, split_name, "images", thermal_image_name)
+            rgb_txt_output = os.path.join(output_path, split_name, "labels", rgb_txt_name)
+            thermal_txt_output = os.path.join(output_path, split_name, "labels", thermal_txt_name)
 
-            # Rutas de salida para los archivos TXT
-            txt_normal_output = os.path.join(output_path, split, "labels", normal_txt_name)
-            txt_termal_output = os.path.join(output_path, split, "labels", thermal_txt_name)
+            rgb_image.save(rgb_image_output, format="JPEG")
+            copy2(rgb_txt[1], rgb_txt_output)
 
-            # Guardar imágenes en disco
-            img_normal.save(img_normal_output, format="JPEG")
-            copy2(txt_normal[1], txt_normal_output)
+            if model_type == "BASE":
+                thermal_image.save(thermal_image_output, format="JPEG")
+                copy2(thermal_txt[1], thermal_txt_output)
 
-            if type_model == "BASE":
-                img_termal.save(img_termal_output, format="JPEG")
-                copy2(txt_termal[1], txt_termal_output)
+    print("Dataset split completed.")
 
-    print("División del dataset completada.")
 
-def delete_file_yaml(carpeta):    
-    # Listar todos los archivos en la carpeta
-    archivos = os.listdir(carpeta)
-    
-    # Filtrar solo los archivos con extensión .yaml
-    archivos_yaml = [archivo for archivo in archivos if archivo.lower().endswith('.yaml')]
-    
-    # Eliminar cada archivo .yaml encontrado
-    for archivo in archivos_yaml:
-        ruta_archivo = os.path.join(carpeta, archivo)
-        os.remove(ruta_archivo)
-        print(f"Archivo eliminado: {ruta_archivo}")
-    
-    logging.info("Se eliminaron los .yaml")
+def delete_file_yaml(folder_path):
+    """Remove all YAML files from a folder."""
+    file_names = os.listdir(folder_path)
+    yaml_files = [file_name for file_name in file_names if file_name.lower().endswith(".yaml")]
 
-def dataloder_diff(model_used, data_used, BASE_DIR):
+    for yaml_file in yaml_files:
+        file_path = os.path.join(folder_path, yaml_file)
+        os.remove(file_path)
+        print(f"Removed file: {file_path}")
+
+    logging.info("YAML files were removed.")
+
+
+def dataloader_diff(model_used, data_used, base_dir):
+    """Create train/valid/test splits and generate YAML files per model type."""
     param_sets = data_used.param_sets
 
     delete_file_folder(data_used.output_path)
-    list_cow, list_txt_cow = rename_img_txt(data_used.dataset_cow, "Cow")
-    list_Deer, list_txt_deer = rename_img_txt(data_used.dataset_deer, "Deer")
-    list_Horse, list_txt_horse = rename_img_txt(data_used.dataset_horse,  "Horse")
-    list_images = list_cow + list_Deer + list_Horse
-    list_txt = list_txt_cow + list_txt_deer + list_txt_horse
+    cow_images, cow_txt_files = rename_img_txt(data_used.dataset_cow, "Cow")
+    deer_images, deer_txt_files = rename_img_txt(data_used.dataset_deer, "Deer")
+    horse_images, horse_txt_files = rename_img_txt(data_used.dataset_horse, "Horse")
+    images = cow_images + deer_images + horse_images
+    txt_files = cow_txt_files + deer_txt_files + horse_txt_files
     delete_file_yaml("src")
 
     if model_used.name_model == "yolov11_late_fusion":
-        split_dataset_images(list_images, list_txt, data_used.output_path, seed=param_sets["seed"], train_ratio=param_sets["train"], valid_ratio=param_sets["valid"])
-        construct_file_yaml(data_used.output_path, "/train/img_normal/images", "/valid/img_normal/images", "/test/img_normal/images", data_used.classes, BASE_DIR, "IMGS_l_f.yaml")
-        construct_file_yaml(data_used.output_path, "/train/termales/images", "/valid/termales/images", "/test/termales/images", data_used.classes, BASE_DIR, "TERM_l_f.yaml")
-
+        split_dataset_images(
+            images,
+            txt_files,
+            data_used.output_path,
+            seed=param_sets["seed"],
+            train_ratio=param_sets["train"],
+            valid_ratio=param_sets["valid"],
+        )
+        construct_file_yaml(
+            data_used.output_path,
+            "/train/img_normal/images",
+            "/valid/img_normal/images",
+            "/test/img_normal/images",
+            data_used.classes,
+            base_dir,
+            "IMGS_l_f.yaml",
+        )
+        construct_file_yaml(
+            data_used.output_path,
+            "/train/thermal/images",
+            "/valid/thermal/images",
+            "/test/thermal/images",
+            data_used.classes,
+            base_dir,
+            "TERM_l_f.yaml",
+        )
     elif model_used.name_model == "yolov11_base":
-        split_dataset_one_images(list_images, list_txt, data_used.output_path, type_model="BASE", seed=param_sets["seed"], train_ratio=param_sets["train"], valid_ratio=param_sets["valid"])
-        construct_file_yaml(data_used.output_path, "/train", "/valid", "/test", data_used.classes, BASE_DIR, "BASE_yolov11.yaml")
-
+        split_dataset_one_images(
+            images,
+            txt_files,
+            data_used.output_path,
+            model_type="BASE",
+            seed=param_sets["seed"],
+            train_ratio=param_sets["train"],
+            valid_ratio=param_sets["valid"],
+        )
+        construct_file_yaml(
+            data_used.output_path,
+            "/train",
+            "/valid",
+            "/test",
+            data_used.classes,
+            base_dir,
+            "BASE_yolov11.yaml",
+        )
     elif model_used.name_model == "yolov11_HST":
-        split_dataset_one_images(list_images, list_txt, data_used.output_path, type_model="HST", seed=param_sets["seed"], train_ratio=param_sets["train"], valid_ratio=param_sets["valid"])
-        construct_file_yaml(data_used.output_path, "/train", "/valid", "/test", data_used.classes, BASE_DIR, "IMG_HST.yaml")
-    
+        split_dataset_one_images(
+            images,
+            txt_files,
+            data_used.output_path,
+            model_type="HST",
+            seed=param_sets["seed"],
+            train_ratio=param_sets["train"],
+            valid_ratio=param_sets["valid"],
+        )
+        construct_file_yaml(
+            data_used.output_path,
+            "/train",
+            "/valid",
+            "/test",
+            data_used.classes,
+            base_dir,
+            "IMG_HST.yaml",
+        )
     elif model_used.name_model == "yolov11_GST":
-        split_dataset_one_images(list_images, list_txt, data_used.output_path, type_model="GST", seed=param_sets["seed"], train_ratio=param_sets["train"], valid_ratio=param_sets["valid"])
-        construct_file_yaml(data_used.output_path, "/train", "/valid", "/test", data_used.classes, BASE_DIR, "IMG_GST.yaml")
+        split_dataset_one_images(
+            images,
+            txt_files,
+            data_used.output_path,
+            model_type="GST",
+            seed=param_sets["seed"],
+            train_ratio=param_sets["train"],
+            valid_ratio=param_sets["valid"],
+        )
+        construct_file_yaml(
+            data_used.output_path,
+            "/train",
+            "/valid",
+            "/test",
+            data_used.classes,
+            base_dir,
+            "IMG_GST.yaml",
+        )
 
-def get_dataloader(model_used, data_used, BASE_DIR, data_create):
+
+def dataloder_diff(model_used, data_used, BASE_DIR):
+    """Backward-compatible alias for dataloader_diff."""
+    dataloader_diff(model_used, data_used, BASE_DIR)
+
+
+def get_dataloader(model_used, data_used, base_dir, data_create):
+    """Prepare dataset splits when requested by the pipeline."""
     if data_create:
-        dataloder_diff(model_used, data_used, BASE_DIR)
-        logging.info("Se dividió correctamente los datasets")
-
-    logging.info("Se salteo la creación de nuevos sets")
+        dataloader_diff(model_used, data_used, base_dir)
+        logging.info("Datasets were split successfully.")
+    else:
+        logging.info("Dataset split step was skipped.")
